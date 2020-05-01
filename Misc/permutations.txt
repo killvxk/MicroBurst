@@ -18,6 +18,7 @@ database
 data-private
 data-public
 dev
+demo
 dns
 docker
 exe
@@ -65,6 +66,15 @@ storageaccount
 test
 tmp
 tmp-logs
+themes
+useast
+useast2
+centralus
+northcentralus
+westcentralus
+westus
+westus2
 userfiles
 web
 attachments
+img

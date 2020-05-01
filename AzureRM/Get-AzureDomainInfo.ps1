@@ -5,6 +5,7 @@
 #>
 
 # To Do:
+#       Add Ctrl-C handling for skipping sections/storage accounts
 #       Higher level metrics reporting (X% of your domain users have contributor rights, etc.)
 #       Apply NSGs to Public IPs and VMs to pre-map existing internet facing services
 #       Add better error handling - More try/catch blocks for built-in functions that you may not have rights for
@@ -171,8 +172,13 @@ Function Get-AzureDomainInfo
     }
 
     # Folder Parameter Checking - Creates AzureRM folder to separate from MSOL folder
-    if ($folder){if(Test-Path $folder){if(Test-Path $folder"\AzureRM"){}else{New-Item -ItemType Directory $folder"\AzureRM"|Out-Null}}else{New-Item -ItemType Directory $folder|Out-Null ; New-Item -ItemType Directory $folder"\AzureRM"|Out-Null}; $folder = -join ($pwd, "\" ,$folder, "\AzureRM")}
+    if ($folder){
+        if(Test-Path $folder){
+            if(Test-Path $folder"\AzureRM"){}
+            else{New-Item -ItemType Directory $folder"\AzureRM"|Out-Null}}
+        else{New-Item -ItemType Directory $folder|Out-Null ; New-Item -ItemType Directory $folder"\AzureRM"|Out-Null}; $folder = -join ($folder, "\AzureRM")}
     else{if(Test-Path AzureRM){}else{New-Item -ItemType Directory AzureRM|Out-Null};$folder= -join ($pwd, "\AzureRM")}
+
 
     if(Test-Path $folder"\"$Subscription){}
     else{New-Item -ItemType Directory $folder"\"$Subscription | Out-Null}
@@ -275,7 +281,8 @@ Function Get-AzureDomainInfo
                             Write-Verbose "`t`t`tPublic File Found - $pubfileName"
 
                             $blobUrl = "https://$StorageAccountName.blob.core.windows.net/$containerName/"+$blobName.Name
-                            $blobUrl >> $folder"\Files\PublicFileURLs.txt"
+                            # Write out available files within "Blob" containers
+                            $blobUrl >> $folder"\Files\BlobFileURLs.txt"                            
                             }
                         if ($publicStatus.PublicAccess -eq "Container"){
                             Write-Verbose "`t`t`t$containerName Container is Public" 
@@ -283,6 +290,12 @@ Function Get-AzureDomainInfo
                             $blobName = Get-AzureStorageBlob -Container $container.Name | select Name
                             $blobUrl = "https://$StorageAccountName.blob.core.windows.net/$containerName/"
                             $blobUrl >> $folder"\Files\PublicContainers.txt"
+                            # Write out available files within "Container" containers
+                            foreach ($blobfile in $blobName){                                
+                                $blobUrl = "https://$StorageAccountName.blob.core.windows.net/$containerName/"+$blobfile.Name
+                                $blobUrl >> $folder"\Files\ContainersFileUrls.txt"
+                                }
+                            
                             }
                     }
 
@@ -368,7 +381,7 @@ Function Get-AzureDomainInfo
 
         # Get/Write Available AzureSQL DBs
         Write-Verbose "Getting AzureSQL Resources..."
-        $azureSQLServers = AzureRmResource | where {$_.ResourceType -Like "Microsoft.Sql/servers"}
+        $azureSQLServers = Get-AzureRmResource | where {$_.ResourceType -Like "Microsoft.Sql/servers"}
         $azureSQLServersCount = @($azureSQLServers).Count
         $azureSQLDatabasesCount = 0
 
@@ -408,6 +421,18 @@ Function Get-AzureDomainInfo
         
         Write-Verbose "`t$appServsCount App Services enumerated."
 
+        # Get list of Disks
+        Write-Verbose "Getting Azure Disks..."
+        $disks = Get-AzureRmDisk
+        $disksCount = $disks.Count
+        Write-Verbose "`t$disksCount Disks were enumerated."
+        # Write Disk info to file
+        $disks | Export-Csv -NoTypeInformation -LiteralPath $folder"\Resources\Disks.CSV"
+        $disks | ForEach-Object{if($_.EncryptionSettings -eq $null){$_.Name | Out-File -LiteralPath $folder"\Resources\Disks-NoEncryption.txt"}}
+        
+        # Get Deployments and Parameters
+        Write-Verbose "Getting Azure Deployments and Parameters..."
+        Get-AzureRmResourceGroup | Get-AzureRmResourceGroupDeployment |  Out-File -LiteralPath $folder"\Resources\Deployments.txt"
     }
 
     if ($VMs -eq "Y"){
@@ -423,6 +448,39 @@ Function Get-AzureDomainInfo
         $VMList | select ResourceGroupName,Name,Location,ProvisioningState,Zone | Export-Csv -NoTypeInformation -LiteralPath $folder"\VirtualMachines\VirtualMachines-Basic.csv"
 
         Write-Verbose "`t$VMCount Virtual Machines enumerated."
+
+        Write-Verbose "Getting Virtual Machine Scale Sets..."
+
+        $scaleSets = Get-AzureRmVmss
+ 
+        # Set Up Data Table
+        $vmssDT = New-Object System.Data.DataTable("vmssVMs")
+        $columns = @("Name","ComputerName","PrivateIP","AdminUser","AdminPassword","Secrets","ProvisioningState")
+        foreach ($col in $columns) {$vmssDT.Columns.Add($col) | Out-Null}
+        $vmssCount = $scaleSets.Count
+        foreach($sSet in $scaleSets){
+            $instanceIds = Get-AzureRmVmssVM -ResourceGroupName $sSet.ResourceGroupName -VMScaleSetName $sSet.Name 
+            foreach($sInstance in $instanceIds){
+
+                $vmssVMs = Get-AzureRmVmssVM -ResourceGroupName $sInstance.ResourceGroupName -VMScaleSetName $sSet.Name -InstanceId $sInstance.InstanceId
+                $nicName = ($vmssVMs.NetworkProfile.NetworkInterfaces[0].Id).Split('/')[-1]
+
+                # Correct the resource name
+                $resourceName = $sSet.Name + "/" + $vmssVMs.InstanceId + "/" + $nicName
+                
+                # Get resource interface config
+                $target = Get-AzureRmResource -ResourceGroupName $sInstance.ResourceGroupName -ResourceType Microsoft.Compute/virtualMachineScaleSets/virtualMachines/networkInterfaces -ResourceName $resourceName -ApiVersion 2017-03-30
+
+                # Write the Data Table to the file
+                $vmssDT.Rows.Add($vmssVMs.Name,$vmssVMs.OsProfile.ComputerName,$target.Properties.ipConfigurations[0].properties.privateIPAddress,$vmssVMs.OsProfile.AdminUsername,$vmssVMs.OsProfile.AdminPassword,$vmssVMs.OsProfile.Secrets,$vmssVMs.ProvisioningState) | Out-Null
+                                
+            }
+        }
+
+        $vmssDT | Export-Csv -NoTypeInformation -LiteralPath $folder"\VirtualMachines\VirtualMachineScaleSets.csv"
+
+        Write-Verbose "`t$vmssCount Virtual Machine Scale Sets enumerated."
+
     }
 
     if($NetworkInfo -eq "Y"){
